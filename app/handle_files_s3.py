@@ -30,7 +30,7 @@ class S3BucketClient:
         self.bucket = bucket
         self.client = boto3.client("s3")
 
-    def get_files_names(self, prefix: str) -> List[str]:
+    def get_files_names(self, prefix: str, file_extension:str) -> List[str]:
         """Get all file names for a given s3 directory (prefix).
 
         Parameters
@@ -38,6 +38,8 @@ class S3BucketClient:
             prefix: str
                 the prefix (directory) where to look for files.
                 For example: 'data/raw/new_client'
+            file_extension:
+                file extension to filter keys
 
         Returns
         -------
@@ -47,9 +49,9 @@ class S3BucketClient:
         ------
             TODO
         """
-        response = self.client.list_objects(
+        response = self.client.list_objects_v2(
             Bucket=self.bucket,
-            Marker=prefix + "/",
+            Prefix=prefix + "/",
         )
-        return [x["Key"] for x in response["Contents"]]
+        return [x["Key"] for x in response["Contents"] if file_extension in x["Key"]]
         # Add exception if no files found!!!

@@ -1,3 +1,5 @@
+import os
+import time
 import awswrangler as wr
 import pandas as pd
 import numpy as np
@@ -19,9 +21,7 @@ from path_constants import (
 )
 
 
-def process_dataframe(file: str, stop_words: list, user_list: set) -> pd.DataFrame:
-    # Replace None as string with None (treated as missing)
-    tweets_df = pd.read_parquet(file).replace(to_replace="None", value=None)
+def process_dataframe(tweets_df: pd.DataFrame, stop_words: list, economic_tags: list, uncertainty_tags:list,user_list: set) -> pd.DataFrame:
 
     # Cleans Text
     cleansed_text = tweets_df.text.fillna("").apply(clean_text, stop_words=stop_words)
@@ -83,6 +83,7 @@ def process_dataframe(file: str, stop_words: list, user_list: set) -> pd.DataFra
 
 
 if __name__ == "__main__":
+    #while True:
     s3_client = S3BucketClient(BUCKET)
 
     stop_words = get_ls_from_txt(PATH_STOP_WORDS)
@@ -92,18 +93,15 @@ if __name__ == "__main__":
     economic_tags = get_ls_from_txt(PATH_TAGS_ECONOMY)
 
     uncertainty_tags = get_ls_from_txt(PATH_TAGS_UNCERTANTY)
-
-    s3_keys = s3_client.get_files_names(PREFIX_RAW)
-
-    df_list = []
-
-    for key in s3_keys:
-        df_list.append(process_dataframe(key, stop_words, user_list))
-
-    concat_tweets_df = pd.concat(df_list)
+    #breakpoint()
+    s3_keys = [os.path.join("s3://", BUCKET, key) for key in s3_client.get_files_names(PREFIX_RAW, "parquet")]
+    print(s3_keys)
+    tweets_df = wr.s3.read_parquet(path=s3_keys).replace(to_replace="None", value=np.nan)
+    
+    processed_tweets_df = process_dataframe(tweets_df,stop_words, economic_tags, uncertainty_tags, user_list)
 
     wr.s3.to_parquet(
-        df=concat_tweets_df,
+        df=processed_tweets_df,
         path=f"s3://{BUCKET}/{PREFIX_CLEAN_UNGRUOPED}/",
         dataset=True,
         mode="append",
@@ -118,3 +116,6 @@ if __name__ == "__main__":
             "month",
         ],
     )
+        #wr.s3.delete_objects(['s3://bucket/key0', 's3://bucket/key1']) 
+        #time.sleep(1800)
+###Agregar Logging!
